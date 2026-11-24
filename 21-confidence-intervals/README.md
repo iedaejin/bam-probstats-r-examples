@@ -8,4 +8,4 @@ Confidence level; intervals for means, proportions and variances
 
 - [`21-confidence-intervals.Rmd`](21-confidence-intervals.Rmd): open in RStudio and click **Knit**, or run the chunks
 
-**Problem sets (on Blackboard):** 5a statistical-inference (sections 1, 6), 5d ci-tests (Part A), 4c sampling-ci (P9–24)
+**Problem sets (on Blackboard):** 5a statistical-inference (sections 1, 6), 5d ci-tests (Parts A and C), 4c sampling-ci (P9–24)
