@@ -1,0 +1,75 @@
+---
+title: "Sampling distributions and the CLT in `R`"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+All code is base `R`. Every number quoted on the Session 19 slides can be reproduced here.
+
+## Sampling distribution of the mean
+
+```{r}
+set.seed(19)
+xbar <- replicate(10000, mean(rexp(30, rate = 1)))   # Exp(1): mu = 1, sigma = 1
+c(mean = mean(xbar), sd = sd(xbar), theory_se = 1 / sqrt(30))
+hist(xbar, breaks = 40, freq = FALSE, main = "n = 30, Exp(1)")
+curve(dnorm(x, 1, 1 / sqrt(30)), add = TRUE, col = "red", lwd = 2)
+```
+
+## CLT versus exact tail probabilities
+
+```{r}
+# Xbar from Exp(1) is Gamma(shape = n, rate = n)
+mean(xbar > 1.5)                                         # simulation
+1 - pnorm(1.5, 1, 1 / sqrt(30))                          # CLT
+pgamma(1.5, shape = 30, rate = 30, lower.tail = FALSE)   # exact
+pnorm(0.4, 1, 1 / sqrt(5)); pgamma(0.4, 5, 5)            # n = 5, lower tail
+```
+
+## Probabilities for Xbar and for a sum
+
+```{r}
+pnorm(498.5, 500, 8 / sqrt(64))                  # P(Xbar < 498.5) = 0.0668
+pnorm(2) - pnorm(-2)                             # 0.9545
+(1.96 * 8)^2                                     # n for P(|Xbar - mu| < 1) >= 0.95: 245.9
+64 / 0.05                                        # Chebyshev: 1280
+1 - pnorm(210, 200, 1.2 * sqrt(80))              # sum of 80 jobs: 0.176
+pnorm(165, 180, 3 * sqrt(45))                    # sum of 45 calls: 0.228
+```
+
+## Normal approximation to the binomial
+
+```{r}
+# Bin(40, 0.3), P(X <= 10)
+pbinom(10, 40, 0.3)                              # exact 0.309
+pnorm(10.5, 12, sqrt(8.4))                       # with continuity correction 0.302
+pnorm(10,   12, sqrt(8.4))                       # without 0.245
+# Bin(60, 0.2)
+1 - pbinom(14, 60, 0.2); 1 - pnorm(14.5, 12, sqrt(9.6))    # P(X >= 15)
+dbinom(10, 60, 0.2); pnorm(10.5, 12, sqrt(9.6)) - pnorm(9.5, 12, sqrt(9.6))
+# sample proportion
+1 - pnorm(0.30, 0.25, sqrt(0.25 * 0.75 / 300))   # 0.0228
+```
+
+## Cauchy: no law of large numbers
+
+```{r}
+set.seed(1)
+x <- rcauchy(5000)
+plot(cumsum(x) / seq_along(x), type = "l", log = "x", ylab = "running mean", xlab = "n")
+```
+
+## Exact results for a normal population and the counting/waiting duality
+
+```{r}
+# normal population: Xbar is exactly N(mu, sigma^2/n); (n-1)S^2/sigma^2 ~ chi^2_{n-1}; t statistic ~ t_{n-1}
+set.seed(19)
+n <- 5; B <- 20000
+x <- matrix(rnorm(n * B, mean = 10, sd = 2), ncol = n)
+c(mean(rowMeans(x)), sd(rowMeans(x)), 2 / sqrt(n))                       # 10, 0.894
+mean(apply(x, 1, var) * (n - 1) / 4 > qchisq(0.95, n - 1))               # about 0.05
+mean((rowMeans(x) - 10) / (apply(x, 1, sd) / sqrt(n)) > qt(0.95, n - 1)) # about 0.05
+# duality: P(N <= 40) = P(S_41 > 420), job time mean 10, variance 2
+1 - pnorm(420, mean = 410, sd = sqrt(82))                                # 0.1347
+1 - pnorm(420, mean = 400, sd = sqrt(80))                                # S_40 > 420: at most 39 jobs, 0.0127
+```

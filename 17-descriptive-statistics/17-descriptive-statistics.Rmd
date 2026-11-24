@@ -1,0 +1,46 @@
+---
+title: "Descriptive statistics in R"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+## Summaries (base R datasets)
+
+```{r}
+x <- rivers                                  # lengths of 141 US rivers
+c(mean = mean(x), median = median(x), sd = sd(x), IQR = IQR(x))
+fivenum(x)                                   # Tukey hinges (as in the problem set)
+summary(x)                                   # quantile type 7: slightly different
+q <- fivenum(x); iqr <- q[4] - q[2]
+c(lower = q[2] - 1.5 * iqr, upper = q[4] + 1.5 * iqr, flagged = sum(x > q[4] + 1.5 * iqr))
+```
+
+## Plots
+
+```{r}
+hist(x, freq = FALSE, breaks = 25, main = "", xlab = "miles")
+boxplot(x, horizontal = TRUE)
+plot(mtcars$wt, mtcars$mpg, xlab = "weight", ylab = "mpg"); cor(mtcars$wt, mtcars$mpg)
+```
+
+## n versus n - 1
+
+```{r}
+y <- c(1, 3, 4, 6, 6)
+c(var(y), sum((y - mean(y))^2) / length(y))   # R uses n - 1: 4.5 versus 3.6
+```
+
+## z-scores and the ECDF
+
+```{r}
+z <- scale(y); c(mean(z), sd(z))
+Fn <- ecdf(c(2, 3, 3, 5, 8)); Fn(c(1, 3, 4, 8))
+plot(ecdf(rivers), main = "ECDF of rivers")
+```
+
+## Categorical data
+
+```{r}
+tab <- table(mtcars$cyl); tab; round(prop.table(tab), 3)
+barplot(tab, xlab = "cylinders", ylab = "count")
+```

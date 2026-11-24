@@ -1,0 +1,76 @@
+---
+title: "Confidence intervals in `R`"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+All code is base `R`. Every number quoted on the Session 21 slides can be reproduced here.
+
+## Mean: $z$ and $t$ intervals
+
+```{r}
+# z interval, sigma known (battery example)
+11.2 + c(-1, 1) * qnorm(0.975) * 2.4 / sqrt(36)
+
+# t interval, mtcars
+x <- mtcars$mpg; n <- length(x)
+t.test(x)$conf.int
+mean(x) + c(-1, 1) * qt(0.975, n - 1) * sd(x) / sqrt(n)   # by hand
+qt(0.975, c(2, 5, 10, 15, 30, 100))                       # t critical values
+```
+
+## Coverage by simulation
+
+```{r}
+set.seed(21)
+mu <- 50; sigma <- 10; n <- 25
+hit <- replicate(10000, {
+  xb <- mean(rnorm(n, mu, sigma))
+  abs(xb - mu) < qnorm(0.975) * sigma / sqrt(n)
+})
+mean(hit)          # close to 0.95
+```
+
+## Proportions: Wald and Wilson
+
+```{r}
+x <- 148; n <- 400; ph <- x / n
+ph + c(-1, 1) * qnorm(0.975) * sqrt(ph * (1 - ph) / n)    # Wald
+prop.test(x, n, correct = FALSE)$conf.int                 # Wilson
+prop.test(3, 20, correct = FALSE)$conf.int                # small n: Wilson
+0.15 + c(-1, 1) * qnorm(0.975) * sqrt(0.15 * 0.85 / 20)   # small n: Wald goes negative
+```
+
+## Variance: chi-square interval
+
+```{r}
+x <- mtcars$mpg; n <- length(x); s2 <- var(x)
+ci <- (n - 1) * s2 / qchisq(c(0.975, 0.025), n - 1)
+ci; sqrt(ci)
+
+# Fragility: coverage with non-normal data (n = 20)
+cover <- function(gen, sig2, n = 20, B = 20000) mean(replicate(B, {
+  ci <- (n - 1) * var(gen(n)) / qchisq(c(0.975, 0.025), n - 1)
+  ci[1] < sig2 && sig2 < ci[2] }))
+c(normal = cover(rnorm, 1), t5 = cover(function(n) rt(n, 5), 5 / 3),
+  uniform = cover(runif, 1 / 12), exponential = cover(rexp, 1))
+```
+
+## Sample size
+
+```{r}
+ceiling((qnorm(0.975) * 15 / 2)^2)             # mean, sigma = 15, E = 2
+ceiling(qnorm(0.975)^2 * 0.25 / 0.03^2)        # proportion, E = 0.03, p = 1/2
+```
+
+## Two samples
+
+```{r}
+a <- ToothGrowth$len[ToothGrowth$supp == "OJ"]
+b <- ToothGrowth$len[ToothGrowth$supp == "VC"]
+t.test(a, b)$conf.int                          # Welch
+t.test(a, b, var.equal = TRUE)$conf.int        # pooled
+
+p1 <- 120 / 400; p2 <- 90 / 350
+(p1 - p2) + c(-1, 1) * qnorm(0.975) * sqrt(p1 * (1 - p1) / 400 + p2 * (1 - p2) / 350)
+```

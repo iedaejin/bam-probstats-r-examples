@@ -1,0 +1,61 @@
+---
+title: "Joint distributions in `R`"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+# Joint PMF as a matrix
+
+Running example of Session 13: defects $X$ and $Y$ at two inspection stations.
+
+```{r}
+P <- matrix(c(.20, .10, .05,
+              .15, .20, .10,
+              .05, .05, .10), 3, byrow = TRUE,
+            dimnames = list(x = 0:2, y = 0:2))
+P
+sum(P)                       # a valid PMF sums to 1
+```
+
+## Marginals and events
+
+```{r}
+px <- rowSums(P); py <- colSums(P)    # row sums -> p_X, column sums -> p_Y
+px; py
+xy <- expand.grid(x = 0:2, y = 0:2)
+sum(P[outer(0:2, 0:2, "==")])         # P(X = Y)
+sum(P[outer(0:2, 0:2, "<")])          # P(X < Y)
+sum(P[outer(0:2, 0:2, "+") <= 2])     # P(X + Y <= 2)
+sum(P[1:2, 1:2])                      # F(1, 1)
+```
+
+## The marginals do not determine the joint
+
+```{r}
+Pind <- outer(px, py)                 # same marginals, independent joint
+rbind(rowSums(Pind), px); rbind(colSums(Pind), py)
+all.equal(c(P), c(Pind))              # but the tables differ
+```
+
+# Joint PDF: f(x, y) = exp(-y) on 0 < x < y
+
+```{r}
+f <- function(x, y) ifelse(x > 0 & x < y, exp(-y), 0)
+# total mass: integrate over x in (0, y), then y in (0, Inf)
+integrate(function(y) sapply(y, function(yy) integrate(function(x) f(x, yy), 0, yy)$value), 0, Inf)
+# P(X < 1, Y < 2) = 1 - exp(-1) - exp(-2)
+integrate(function(x) sapply(x, function(xx) integrate(function(y) f(xx, y), xx, 2)$value), 0, 1)
+1 - exp(-1) - exp(-2)
+```
+
+## Simulating pairs
+
+If $Y\sim\mathrm{Gamma}(2,1)$ and $X\mid Y=y\sim U(0,y)$, the pair has this density.
+
+```{r}
+set.seed(13)
+y <- rgamma(1e5, shape = 2, rate = 1); x <- runif(1e5, 0, y)
+mean(x < 1 & y < 2)                   # close to 0.497
+c(mean(x), mean(y))                   # marginal means 1 and 2
+plot(x[1:2000], y[1:2000], pch = 16, cex = .5, xlab = "x", ylab = "y")
+```

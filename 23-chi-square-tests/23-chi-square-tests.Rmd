@@ -1,0 +1,81 @@
+---
+title: "Chi-square tests in `R`"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+All code is base `R`. Every number quoted on the Session 23 slides can be reproduced here.
+
+## Goodness of fit: Mendel's peas
+
+```{r}
+o <- c(315, 108, 101, 32)
+p0 <- c(9, 3, 3, 1) / 16
+sum(o) * p0                       # expected counts
+g <- chisq.test(o, p = p0)
+g                                  # X-squared = 0.47, df = 3, p = 0.925
+qchisq(0.95, 3)                    # critical value 7.81
+```
+
+Equal plans (illustrative data): $\chi^2 = 7.96$, $\nu = 3$, $p = 0.047$.
+
+```{r}
+chisq.test(c(62, 48, 55, 35))
+```
+
+## Goodness of fit with an estimated parameter: horse kicks
+
+```{r}
+k <- c(109, 65, 22, 3, 1)                     # deaths 0, 1, 2, 3, 4 per corps-year
+n <- sum(k); lambda <- sum(0:4 * k) / n       # 0.61
+E <- n * c(dpois(0:1, lambda), 1 - ppois(1, lambda))   # group "2+": E_3 = 25.04
+O <- c(109, 65, 26)
+stat <- sum((O - E)^2 / E)
+c(E, stat = stat)
+pchisq(stat, df = 3 - 1 - 1, lower.tail = FALSE)       # nu = k - 1 - m = 1, p = 0.80
+pchisq(stat, df = 2, lower.tail = FALSE)               # wrong df: p = 0.97
+```
+
+## Independence: hair and eye colour
+
+```{r}
+t <- margin.table(HairEyeColor, c(1, 2))
+t
+test <- chisq.test(t)
+test                               # 138.29, df = 9
+round(test$expected, 1)
+round(test$stdres, 2)              # standardised residuals
+sqrt(test$statistic / (sum(t) * (min(dim(t)) - 1)))    # Cramer's V = 0.28
+```
+
+## Homogeneity and the 2 x 3 table (illustrative data)
+
+```{r}
+h <- matrix(c(40, 60, 52, 48, 66, 34), nrow = 3, byrow = TRUE)
+chisq.test(h)                      # 13.6, df = 2, p = 0.0011
+m <- matrix(c(30, 50, 20, 45, 40, 15), nrow = 2, byrow = TRUE)
+chisq.test(m)                      # 4.83, df = 2, p = 0.090
+chisq.test(m)$expected
+```
+
+## The 2 x 2 case: z squared equals chi-square
+
+```{r}
+tab <- matrix(c(42, 58, 27, 73), 2, byrow = TRUE)
+pt <- prop.test(c(42, 27), c(100, 100), correct = FALSE)
+ph <- 69 / 200
+z <- (0.42 - 0.27) / sqrt(ph * (1 - ph) * (2 / 100))
+c(z = z, z2 = z^2, chisq = unname(chisq.test(tab, correct = FALSE)$statistic))
+chisq.test(tab)                    # default Yates correction: 4.34, p = 0.037
+fisher.test(matrix(c(3, 1, 1, 3), 2))$p.value                       # 0.486 two-sided
+fisher.test(matrix(c(3, 1, 1, 3), 2), alternative = "greater")$p.value  # 0.243
+```
+
+## Simpson's paradox: Berkeley admissions
+
+```{r}
+a <- margin.table(UCBAdmissions, c(1, 2))
+prop.table(a, 2)["Admitted", ]                          # 0.445 men, 0.304 women
+chisq.test(a, correct = FALSE)                          # 92.2, df = 1
+round(apply(UCBAdmissions, 3, function(m) m["Admitted", ] / colSums(m)), 3)
+```

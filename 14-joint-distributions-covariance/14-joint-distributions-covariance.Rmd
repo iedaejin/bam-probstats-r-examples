@@ -1,0 +1,82 @@
+---
+title: "Conditionals, covariance and correlation in `R`"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+# Discrete running example
+
+```{r}
+P <- matrix(c(.20, .10, .05,
+              .15, .20, .10,
+              .05, .05, .10), 3, byrow = TRUE,
+            dimnames = list(x = 0:2, y = 0:2))
+x <- 0:2; y <- 0:2
+px <- rowSums(P); py <- colSums(P)
+```
+
+## Conditional PMF and independence check
+
+```{r}
+P[, "2"] / py["2"]                    # p_{X|Y}(x | 2)
+max(abs(P - outer(px, py)))           # > 0: not independent
+```
+
+## Expectation, covariance, correlation
+
+```{r}
+EX <- sum(x * px); EY <- sum(y * py)
+EXY <- sum(outer(x, y) * P)           # E[XY]
+vx <- sum(x^2 * px) - EX^2; vy <- sum(y^2 * py) - EY^2
+cov_xy <- EXY - EX * EY
+c(EXY = EXY, cov = cov_xy, rho = cov_xy / sqrt(vx * vy))
+vx + vy + 2 * cov_xy                  # Var(X + Y)
+```
+
+# Continuous running example: f(x, y) = exp(-y), 0 < x < y
+
+```{r}
+set.seed(14)
+y <- rgamma(1e5, 2, 1); x <- runif(1e5, 0, y)
+c(cov = cov(x, y), cor = cor(x, y), theory = 1 / sqrt(2))
+var(x + y)                            # theory: 1 + 2 + 2 = 5
+```
+
+# Zero correlation does not mean independence
+
+```{r}
+x <- runif(1e5, -1, 1); y <- x^2
+cor(x, y)                             # approximately 0
+mean(x > 0.9 & y < 0.5)               # exactly 0
+mean(x > 0.9) * mean(y < 0.5)         # about 0.035 if independent
+plot(x[1:1000], y[1:1000], pch = 16, cex = .5, xlab = "x", ylab = "y")
+```
+
+# Variance of sums: binomial
+
+```{r}
+n <- 10; p <- 0.3
+b <- matrix(rbinom(1e5 * n, 1, p), ncol = n)   # n Bernoulli(p) per row
+c(var(rowSums(b)), n * p * (1 - p))
+```
+
+# Conditional expectation and the law of total expectation
+
+```{r}
+P <- matrix(c(.20,.10,.05, .15,.20,.10, .05,.05,.10), 3, byrow = TRUE)
+x <- 0:2; py <- colSums(P)
+m <- sapply(1:3, function(j) sum(x * P[, j]) / py[j])   # E[X | Y = y]
+m                                      # 0.625 0.857 1.2
+c(sum(m * py), sum(x * rowSums(P)))    # both 0.85
+y <- rgamma(1e5, 2, 1); xx <- runif(1e5, 0, y)
+c(mean(xx), mean(y / 2))               # both near 1
+```
+
+# Sums of independent normals and Poissons
+
+```{r}
+s <- rnorm(1e5, 25, 4) + rnorm(1e5, 18, 3)
+c(mean(s), sd(s))                      # near 43 and 5
+t <- rpois(1e5, 4) + rpois(1e5, 3)
+c(mean(t == 0), dpois(0, 7))           # both near 0.0009
+```

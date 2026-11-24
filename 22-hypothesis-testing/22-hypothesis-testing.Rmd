@@ -1,0 +1,63 @@
+---
+title: "Hypothesis tests in `R`"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+All code is base `R`. Every number quoted on the Session 22 slides can be reproduced here.
+
+## z test, p-value and duality (delivery times)
+
+```{r}
+z <- (48.1 - 45) / (12 / sqrt(36))
+c(z = z, p_two_sided = 2 * (1 - pnorm(z)), p_right = 1 - pnorm(z))
+48.1 + c(-1, 1) * qnorm(0.975) * 2          # 95% CI (44.18, 52.02)
+```
+
+## Power and sample size
+
+```{r}
+cr <- 100 + qnorm(0.95) * 3                 # critical value 104.93
+beta <- pnorm((cr - 105) / 3); c(cr = cr, beta = beta, power = 1 - beta)
+ceiling(((qnorm(0.95) + qnorm(0.80)) * 15 / 5)^2)    # 56
+ceiling(((qnorm(0.975) + qnorm(0.80)) * 15 / 5)^2)   # 71
+pw <- function(d, n, a = 0.05) { s <- 1 / sqrt(n); z <- qnorm(1 - a / 2)
+  pnorm(-z + d / s) + pnorm(-z - d / s) }
+pw(0.5, c(25, 50, 100))                     # 0.705 0.942 0.999
+cr2 <- 400 - qnorm(0.95) * 1.25; pnorm((cr2 - 397) / 1.25)   # bakery power 0.775
+```
+
+## One-sample t, proportion
+
+```{r}
+t.test(mtcars$mpg, mu = 20)
+prop.test(116, 200, p = 0.5, correct = FALSE)   # z test, p = 0.024
+(0.58 - 0.5) / sqrt(0.25 / 200)                 # z = 2.26
+```
+
+## Two samples and paired data
+
+```{r}
+t.test(mpg ~ am, data = mtcars)                       # Welch
+t.test(mpg ~ am, data = mtcars, var.equal = TRUE)     # pooled
+with(sleep, t.test(extra[group == 2], extra[group == 1], paired = TRUE))
+t.test(extra ~ group, data = sleep)$p.value           # ignoring pairing: 0.079
+```
+
+## F distribution and F test
+
+```{r}
+var.test(mpg ~ am, data = mtcars)
+v <- tapply(mtcars$mpg, mtcars$am, var); v[2] / v[1]   # F* = 2.59
+qf(0.975, 12, 18)                                      # 2.77
+qf(0.95, 9, 12)                                        # 2.80
+1 / qf(0.975, 18, 12); qf(0.025, 12, 18)               # reciprocal identity
+pf(2.5, 20, 15, lower.tail = FALSE)                    # 0.038
+```
+
+## Multiple testing and large n
+
+```{r}
+1 - 0.95^20; 0.05 / 20
+2 * (1 - pnorm(0.03 * sqrt(10000)))                    # 0.0027
+```

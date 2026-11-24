@@ -1,0 +1,81 @@
+---
+title: "Two-way ANOVA in `R`"
+output: html_document
+author: BAM & BIEBAM
+---
+
+All code is base `R`. Every number quoted on the Session 27 slides can be reproduced here.
+
+## Simulated factorial: fertiliser by variety
+
+```{r}
+set.seed(2701)
+r <- 4
+mu <- matrix(c(20, 24, 26, 21, 30, 40), nrow = 2, byrow = TRUE)   # true cell means
+d <- expand.grid(rep = 1:r, variety = c("V1", "V2", "V3"), fert = c("Standard", "Enriched"))
+d$fert <- factor(d$fert, levels = c("Standard", "Enriched"))
+d$yield <- round(mu[cbind(as.integer(d$fert), as.integer(d$variety))] + rnorm(nrow(d), 0, 2.5), 1)
+with(d, tapply(yield, list(fert, variety), mean))          # cell means
+with(d, interaction.plot(variety, fert, yield))
+```
+
+## The ANOVA table
+
+```{r}
+fit <- aov(yield ~ fert * variety, data = d)
+summary(fit)               # F_A = 47.68, F_B = 36.95, F_AB = 8.22 on 2 and 18 df
+qf(0.95, c(1, 2), 18)      # 4.41, 3.55
+```
+
+By hand: the sums of squares from the cell, row and column means.
+
+```{r}
+y <- d$yield; a <- 2; b <- 3
+gm <- mean(y); mi <- tapply(y, d$fert, mean); mj <- tapply(y, d$variety, mean)
+mij <- tapply(y, list(d$fert, d$variety), mean)
+SSA <- b * r * sum((mi - gm)^2); SSB <- a * r * sum((mj - gm)^2)
+SSAB <- r * sum((mij - outer(mi, rep(1, b)) - outer(rep(1, a), mj) + gm)^2)
+SSE <- sum((y - mij[cbind(as.integer(d$fert), as.integer(d$variety))])^2)
+c(SSA = SSA, SSB = SSB, SSAB = SSAB, SSE = SSE, SST = sum((y - gm)^2))
+```
+
+The additive model puts the interaction into the error:
+
+```{r}
+summary(aov(yield ~ fert + variety, data = d))
+```
+
+## Tukey
+
+```{r}
+mse <- summary(fit)[[1]][4, 3]
+c(B = qtukey(0.95, 3, 18) * sqrt(mse / 8), A = qtukey(0.95, 2, 18) * sqrt(mse / 12),
+  cells = qtukey(0.95, 6, 18) * sqrt(mse / 4))       # 3.63, 2.44, 6.40
+TukeyHSD(fit, "variety")
+TukeyHSD(fit, "fert:variety")
+```
+
+## Diagnostics
+
+```{r}
+par(mfrow = c(1, 2)); plot(fit, which = 1:2); par(mfrow = c(1, 1))
+shapiro.test(residuals(fit))                                   # p = 0.74
+bartlett.test(yield ~ interaction(fert, variety), data = d)    # p = 0.63
+```
+
+## CO2 at concentration 675
+
+```{r}
+co <- subset(CO2, conc == 675)
+summary(aov(uptake ~ Type * Treatment, data = co))             # F_AB = 6.18 on 1 and 8 df
+with(co, tapply(uptake, list(Type, Treatment), mean))
+qf(0.95, 1, 8)                                                 # 5.32
+```
+
+## Exercise from the slides
+
+```{r}
+SS <- c(A = 120, B = 180, AB = 90); df <- c(2, 3, 6); mse <- 144 / 12
+Fs <- (SS / df) / mse
+rbind(F = Fs, crit = qf(0.95, df, 12), p = pf(Fs, df, 12, lower.tail = FALSE))
+```

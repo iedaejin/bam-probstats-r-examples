@@ -1,0 +1,87 @@
+---
+title: "ANOVA designs in `R`: CRD and randomised blocks"
+output: html_document
+author: BAM & BIEBAM
+---
+
+All code is base `R`. Every number quoted on the Session 26 slides can be reproduced here.
+
+## Randomising
+
+```{r}
+set.seed(26)
+sample(rep(c("A", "B", "C"), each = 4))            # completely randomised: 12 plots, 3 treatments
+t(replicate(4, sample(c("A", "B", "C"))))          # randomised block: permute within each block (row)
+```
+
+## Sleep data: CRD versus RBD
+
+```{r}
+sl <- sleep
+sl$ID <- factor(sl$ID); sl$group <- factor(sl$group)
+crd <- aov(extra ~ group, data = sl);       summary(crd)   # F = 3.46, p = 0.079
+rbd <- aov(extra ~ group + ID, data = sl);  summary(rbd)   # F = 16.50, p = 0.003; blocks F = 8.53
+qf(0.95, c(1, 1), c(18, 9))                                # 4.41 and 5.12
+```
+
+Paired $t$ test: $F = t^2$.
+
+```{r}
+a <- sl$extra[sl$group == 1]; b <- sl$extra[sl$group == 2]
+tp <- t.test(b, a, paired = TRUE); tp$statistic; tp$statistic^2   # 4.062, 16.50
+qt(0.975, 9)^2                                                   # 5.12
+```
+
+## Relative efficiency
+
+```{r}
+RE <- function(fit_rbd, t, b) {
+  m <- summary(fit_rbd)[[1]]
+  MSB <- m[2, 3]; MSE <- m[3, 3]
+  est <- ((b - 1) * MSB + b * (t - 1) * MSE) / (b * t - 1)
+  c(MSE_CRD_est = est, MSE_RBD = MSE, RE = est / MSE)
+}
+RE(rbd, t = 2, b = 10)                   # 3.45, 0.756, RE = 4.57
+```
+
+## Your turn 1 and exit ticket (illustrative numbers)
+
+```{r}
+SSTr <- 120; SSB <- 300; SSE <- 80; t <- 3; b <- 6
+F <- (SSTr / (t - 1)) / (SSE / ((t - 1) * (b - 1))); F          # 7.5
+qf(0.95, 2, 10); pf(F, 2, 10, lower.tail = FALSE)               # 4.10, 0.010
+SSE_crd <- SSB + SSE; MSE_crd <- SSE_crd / 15; MSE_crd          # 380 on 15 df, 25.3
+Fc <- (SSTr / 2) / MSE_crd; Fc; qf(0.95, 2, 15); pf(Fc, 2, 15, lower.tail = FALSE)   # 2.37, 3.68, 0.128
+((b - 1) * (SSB / (b - 1)) + b * (t - 1) * (SSE / 10)) / (b * t - 1) / (SSE / 10)    # RE = 2.91
+# exit ticket: t = 4, b = 5, SSTr = 90, SSB = 60, SSE = 72
+F4 <- (90 / 3) / (72 / 12); F4; qf(0.95, 3, 12); pf(F4, 3, 12, lower.tail = FALSE)    # 5.0, 3.49, 0.018
+```
+
+## Orchard sprays: rows as blocks, log scale
+
+```{r}
+os <- OrchardSprays
+os$y <- log(os$decrease); os$r <- factor(os$rowpos)
+rbd2 <- aov(y ~ treatment + r, data = os); summary(rbd2)     # spray F = 54.5, row F = 2.39 (p = 0.035)
+crd2 <- aov(y ~ treatment, data = os);     summary(crd2)     # F = 46.4
+RE(rbd2, t = 8, b = 8)                                       # RE = 1.16
+```
+
+The helper `RE()` reads the ANOVA table by position, so the treatment term must come first and the block term second in the formula.
+
+## Diagnostics and post-hoc
+
+```{r}
+fa <- aov(y ~ r + treatment, data = os)
+par(mfrow = c(1, 2)); plot(fa, which = 1:2); par(mfrow = c(1, 1))
+shapiro.test(resid(fa))
+# profile plot: one line per block
+interaction.plot(os$treatment, os$r, os$y, legend = FALSE, xlab = "treatment", ylab = "log(decrease)")
+tk <- TukeyHSD(fa, "treatment")
+sum(tk$treatment[, "p adj"] < 0.05)                              # 17 of 28
+q <- qtukey(0.95, 8, 49); q                                      # 4.48
+MSE <- summary(fa)[[1]]["Residuals", 3]; q * sqrt(MSE / 8)       # HSD = 0.69
+exp(q * sqrt(MSE / 8))                                           # about a factor 2
+# raw scale: spread differs a lot by treatment
+round(tapply(os$decrease, os$treatment, sd), 1)
+```

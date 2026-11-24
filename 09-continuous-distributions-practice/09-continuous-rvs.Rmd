@@ -1,0 +1,152 @@
+---
+title: "Continuous distributions in `R`"
+output: pdf_document
+author: "BAM & BIEBAM"
+---
+
+# Probability distributions in R
+
+Every standard distribution in `R` has four functions, named by a prefix plus the distribution name:
+
+-   `d`: density $f(x)$ (for continuous variables this is **not** a probability)
+-   `p`: cumulative distribution function $F(x)=P(X\le x)$
+-   `q`: quantile function, the inverse of $F$
+-   `r`: random draws
+
+For continuous variables $P(X=x)=0$, so $P(X<x)=P(X\le x)$ and probabilities come from `p` (areas), never from `d`.
+
+## Uniform distribution
+
+Delivery time $X\sim U(10,30)$ minutes.
+
+```{r}
+a <- 10; b <- 30
+punif(25, min = a, max = b, lower.tail = FALSE)   # P(X > 25) = 0.25
+punif(18, a, b) - punif(12, a, b)                 # P(12 < X < 18) = 0.30
+(a + b) / 2                                       # mean = 20
+(b - a) / sqrt(12)                                # SD = 5.77
+```
+
+Density and CDF:
+
+```{r}
+x <- seq(5, 35, length.out = 400)
+par(mfrow = c(1, 2))
+plot(x, dunif(x, a, b), type = "l", ylab = "f(x)", main = "Density of U(10, 30)")
+plot(x, punif(x, a, b), type = "l", ylab = "F(x)", main = "CDF of U(10, 30)")
+par(mfrow = c(1, 1))
+```
+
+**Exercise:** a sensor error is $X\sim U(-2,2)$ mm. Compute $P(|X|<0.5)$, the 90th percentile and the SD.
+
+```{r}
+punif(0.5, -2, 2) - punif(-0.5, -2, 2)   # 0.25
+qunif(0.90, -2, 2)                       # 1.6
+4 / sqrt(12)                             # 1.155
+```
+
+## Normal distribution
+
+Heights $X\sim N(170, 8^2)$ cm. In `R` the second parameter is the **standard deviation**, not the variance.
+
+```{r}
+mu <- 170; sigma <- 8
+pnorm(158, mu, sigma)                          # P(X < 158) = 0.0668
+pnorm(180, mu, sigma) - pnorm(160, mu, sigma)  # P(160 < X < 180) = 0.7887
+qnorm(0.95, mu, sigma)                         # 95th percentile = 183.2
+```
+
+The same answers by standardising, $Z=(X-\mu)/\sigma$:
+
+```{r}
+pnorm((158 - mu) / sigma)          # Phi(-1.5)
+mu + sigma * qnorm(0.95)           # 170 + 8 * 1.645
+```
+
+The 68--95--99.7 rule:
+
+```{r}
+pnorm(1:3) - pnorm(-(1:3))
+```
+
+**Exercise (work backwards):** a filling machine puts $X\sim N(250, 4^2)$ grams in each pack. Find $c$ such that only 1% of packs weigh less than $c$. Then find the $\sigma$ needed so that only 1% weigh less than 245 g.
+
+```{r}
+qnorm(0.01, 250, 4)                # c = 240.69
+z01 <- qnorm(0.99)                 # upper-tail point z_0.01 = 2.326
+(250 - 245) / z01                  # sigma = 2.149
+```
+
+Draws and the density on top:
+
+```{r}
+set.seed(9)
+draws <- rnorm(1000, mu, sigma)
+hist(draws, breaks = 30, probability = TRUE, main = "1000 draws from N(170, 64)")
+curve(dnorm(x, mu, sigma), add = TRUE, col = "red", lwd = 2)
+```
+
+## Exponential distribution
+
+Orders arrive at rate $\lambda=0.5$ per minute; $T\sim\text{Exp}(0.5)$ is the time to the next order. `R` uses the **rate** $\lambda$ (mean $1/\lambda$).
+
+```{r}
+lambda <- 0.5
+pexp(3, rate = lambda, lower.tail = FALSE)   # P(T > 3) = 0.223
+qexp(0.5, rate = lambda)                     # median = log(2)/0.5 = 1.386
+1 / lambda                                   # mean = 2 minutes
+```
+
+Memoryless property: $P(T>5\mid T>2)=P(T>3)$.
+
+```{r}
+pexp(5, lambda, lower.tail = FALSE) / pexp(2, lambda, lower.tail = FALSE)
+```
+
+Simulation check of the Poisson link: the number of orders in 3 minutes is $\text{Poisson}(1.5)$, and "no order in 3 minutes" is the same event as $T>3$.
+
+```{r}
+set.seed(9)
+t1 <- rexp(1e5, lambda)
+mean(t1 > 3)                 # simulated P(T > 3)
+dpois(0, lambda * 3)         # P(N(3) = 0) = exp(-1.5)
+```
+
+## Gamma distribution
+
+The time $T_3$ of the third order is $\text{Gamma}(\alpha=3,\lambda=0.5)$: the sum of three independent exponential gaps.
+
+```{r}
+pgamma(6, shape = 3, rate = 0.5, lower.tail = FALSE)  # P(T3 > 6) = 0.423
+ppois(2, lambda = 0.5 * 6)                            # same: P(N(6) <= 2)
+3 / 0.5                                               # mean = 6
+3 / 0.5^2                                             # variance = 12
+```
+
+Shape controls skewness:
+
+```{r}
+curve(dgamma(x, shape = 1, rate = 0.5), 0, 25, ylab = "f(x)", lwd = 2,
+      main = "Gamma densities, rate 0.5")
+curve(dgamma(x, shape = 3, rate = 0.5), add = TRUE, col = "red", lwd = 2)
+curve(dgamma(x, shape = 8, rate = 0.5), add = TRUE, col = "blue", lwd = 2)
+legend("topright", c("shape 1 (exponential)", "shape 3", "shape 8"),
+       col = c("black", "red", "blue"), lwd = 2)
+```
+
+Sum of exponentials, by simulation:
+
+```{r}
+set.seed(9)
+t3 <- replicate(1e4, sum(rexp(3, rate = 0.5)))
+hist(t3, breaks = 40, probability = TRUE, main = "Sum of 3 Exp(0.5) gaps")
+curve(dgamma(x, shape = 3, rate = 0.5), add = TRUE, col = "red", lwd = 2)
+mean(t3 > 6)                 # close to 0.423
+```
+
+**Exercise:** a help desk receives calls at rate 2 per hour. Let $T_4$ be the time of the 4th call. Compute $P(T_4\le 2)$ in two ways, with `pgamma` and with `ppois`.
+
+```{r}
+pgamma(2, shape = 4, rate = 2)   # 0.5665
+1 - ppois(3, lambda = 2 * 2)     # same
+```

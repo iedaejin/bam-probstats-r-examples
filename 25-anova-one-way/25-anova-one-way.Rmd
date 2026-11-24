@@ -1,0 +1,98 @@
+---
+title: "One-way ANOVA in `R`"
+output: html_document
+author: BAM & BIEBAM
+---
+
+All code is base `R`. Every number quoted on the Session 25 slides can be reproduced here.
+
+## Why not many t tests
+
+```{r}
+1 - 0.95^c(3, 6, 15)       # P(at least one false positive): 3 tests, 6 tests, 15 tests (k = 6)
+choose(6, 2)               # 15 pairs of 6 groups
+```
+
+## Small example by hand
+
+```{r}
+y <- c(12, 14, 11, 15,  16, 18, 15, 19,  20, 17, 21, 22)
+g <- factor(rep(c("A", "B", "C"), each = 4))
+ybar_i <- tapply(y, g, mean); ybar <- mean(y); n_i <- table(g)
+SSTr <- sum(n_i * (ybar_i - ybar)^2)     # 98.67
+SSE  <- sum((y - ybar_i[g])^2)           # 34
+c(SSTr, SSE, SSTr + SSE)
+F <- (SSTr / 2) / (SSE / 9); F           # 13.06
+qf(0.95, 2, 9); pf(F, 2, 9, lower.tail = FALSE)
+summary(aov(y ~ g))
+```
+
+## Your turn 1 and exit ticket (illustrative numbers)
+
+```{r}
+Ftab <- function(SSTr, SSE, k, N) {
+  F <- (SSTr / (k - 1)) / (SSE / (N - k))
+  c(F = F, crit = qf(0.95, k - 1, N - k), p = pf(F, k - 1, N - k, lower.tail = FALSE),
+    eta2 = SSTr / (SSTr + SSE))
+}
+Ftab(84, 192, 4, 20)     # F = 2.33, crit 3.24, p = 0.113, eta2 = 0.30
+Ftab(120, 300, 5, 35)    # F = 3.00, crit 2.69, p = 0.034, eta2 = 0.29
+pf(106 / 25, 3, 36, lower.tail = FALSE)   # Your turn 2: p = 0.0115
+```
+
+## Chick growth: full analysis
+
+```{r}
+fit <- aov(weight ~ feed, data = chickwts)
+summary(fit)                              # F = 15.37, p = 5.9e-10
+s <- summary(fit)[[1]]; s[1, 2] / sum(s[, 2])   # eta^2 = 0.54
+tapply(chickwts$weight, chickwts$feed, function(v) c(n = length(v), mean = mean(v), sd = sd(v)))
+qf(0.95, 5, 65)                           # 2.36
+sqrt(s[2, 3])                             # pooled sd 54.9
+# interval for the casein mean
+323.58 + c(-1, 1) * qt(0.975, 65) * sqrt(s[2, 3] / 12)
+```
+
+## Diagnostics
+
+```{r}
+par(mfrow = c(1, 2)); plot(fit, which = 1:2); par(mfrow = c(1, 1))
+bartlett.test(weight ~ feed, data = chickwts)        # p = 0.66
+dev <- abs(chickwts$weight - ave(chickwts$weight, chickwts$feed, FUN = median))
+summary(aov(dev ~ feed, data = chickwts))            # Brown-Forsythe, p = 0.59
+shapiro.test(resid(fit))
+max(tapply(chickwts$weight, chickwts$feed, sd)) / min(tapply(chickwts$weight, chickwts$feed, sd))  # 1.68
+```
+
+Insect sprays: unequal variances.
+
+```{r}
+bartlett.test(count ~ spray, data = InsectSprays)               # p < 0.001
+summary(aov(sqrt(count) ~ spray, data = InsectSprays))
+bartlett.test(sqrt(count) ~ spray, data = InsectSprays)         # p = 0.59
+oneway.test(count ~ spray, data = InsectSprays)                 # Welch: F = 36.07
+oneway.test(weight ~ feed, data = chickwts)
+kruskal.test(weight ~ feed, data = chickwts)
+```
+
+## After a significant F
+
+```{r}
+tk <- TukeyHSD(fit); round(tk$feed, 3)
+sum(tk$feed[, "p adj"] < 0.05)                     # 8 of 15
+qtukey(0.95, 6, 65)                                # 4.15
+pw <- pairwise.t.test(chickwts$weight, chickwts$feed, p.adjust.method = "bonferroni", pool.sd = TRUE)
+sum(pw$p.value < 0.05, na.rm = TRUE)               # 8 as well
+0.05 / 15
+```
+
+## F = t^2 for two groups
+
+```{r}
+d <- droplevels(subset(chickwts, feed %in% c("horsebean", "linseed")))
+tt <- t.test(weight ~ feed, data = d, var.equal = TRUE); tt$statistic^2   # 8.61
+summary(aov(weight ~ feed, data = d))
+qf(0.95, 1, 20); qt(0.975, 20)^2                                          # 4.35
+# Your turn 4
+(-2.5)^2; qf(0.95, 1, 14); pf(6.25, 1, 14, lower.tail = FALSE)            # 6.25, 4.60, 0.025
+```

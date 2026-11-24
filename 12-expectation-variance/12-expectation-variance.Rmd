@@ -1,0 +1,49 @@
+---
+title: "Expectation and variance in R"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+## Discrete: from a PMF
+
+```{r}
+x <- c(0, 1, 2, 5); p <- c(.4, .3, .2, .1)
+EX  <- sum(x * p)            # E[X]
+EX2 <- sum(x^2 * p)          # E[X^2] by LOTUS
+c(mean = EX, var = EX2 - EX^2, sd = sqrt(EX2 - EX^2))
+sum(exp(x) * p); exp(EX)     # E[g(X)] is not g(E[X])
+```
+
+## Continuous: integrate
+
+```{r}
+f <- function(x) 3 * x^2     # density on [0, 1]
+EX  <- integrate(function(x) x * f(x), 0, 1)$value
+EX2 <- integrate(function(x) x^2 * f(x), 0, 1)$value
+c(mean = EX, var = EX2 - EX^2)        # 0.75 and 3/80
+integrate(function(x) f(x) / x, 0, 1)$value   # E[1/X] = 1.5, not 1/0.75
+```
+
+## Long-run average (as in Lab 2)
+
+```{r}
+set.seed(12)
+rolls <- sample(6, 1e5, replace = TRUE)
+running <- cumsum(rolls) / seq_along(rolls)
+running[c(10, 100, 1000, 1e5)]        # approaches 3.5
+```
+
+## Named distributions: simulation check
+
+```{r}
+set.seed(12)
+n <- 1e5
+sims <- list(
+  binom = rbinom(n, 40, 0.15),     # theory: mean 6,  var 5.1
+  geom  = rgeom(n, 0.2) + 1,       # rgeom counts failures; +1 gives trials: mean 5, var 20
+  pois  = rpois(n, 3.5),           # mean 3.5, var 3.5
+  exp   = rexp(n, rate = 0.25),    # mean 4, var 16
+  gamma = rgamma(n, shape = 3, rate = 0.5)  # mean 6, var 12
+)
+sapply(sims, function(s) c(mean = mean(s), var = var(s)))
+```

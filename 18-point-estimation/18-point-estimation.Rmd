@@ -1,0 +1,77 @@
+---
+title: "Point estimation in R"
+output: html_document
+author: "BAM & BIEBAM"
+---
+
+## Estimator versus estimate: the sampling distribution
+
+```{r}
+set.seed(18)
+xbar <- replicate(5000, mean(rnorm(25, 50, 10)))   # one estimate per simulated sample
+c(mean = mean(xbar), se = sd(xbar), theory = 10 / sqrt(25))
+x <- mtcars$mpg; c(xbar = mean(x), s = sd(x), se_hat = sd(x) / sqrt(length(x)))
+```
+
+## Bias of the two variance estimators
+
+```{r}
+set.seed(18)
+s2 <- replicate(2e4, var(rnorm(5, 0, 2)))          # var() divides by n - 1
+c(S2 = mean(s2), divisor_n = mean(s2) * 4 / 5, truth = 4)
+n <- 5; sqrt(2 / (n - 1)) * gamma(n / 2) / gamma((n - 1) / 2)   # E[S] / sigma = 0.940
+```
+
+## MSE = bias^2 + variance
+
+```{r}
+set.seed(18)
+n <- 10; s2 <- replicate(4e4, var(rnorm(n)))
+sapply(c(n - 1, n, n + 1), function(d) {
+  est <- s2 * (n - 1) / d
+  c(divisor = d, bias2 = (mean(est) - 1)^2, var = var(est), mse = mean((est - 1)^2))
+})
+```
+
+## Efficiency: mean versus median
+
+```{r}
+set.seed(18)
+X <- matrix(rnorm(2e4 * 25), 2e4)
+c(var_mean = var(rowMeans(X)), var_median = var(apply(X, 1, median)))
+```
+
+## Method of moments: gamma on `precip`
+
+```{r}
+m <- mean(precip); v <- mean((precip - m)^2)
+c(alpha = m^2 / v, lambda = m / v)
+```
+
+## Maximum likelihood: Poisson, numerically and in closed form
+
+```{r}
+x <- c(2, 4, 3, 1, 5, 3, 2, 4, 6, 3)
+ll <- function(l) sum(dpois(x, l, log = TRUE))
+optimize(ll, c(0.1, 10), maximum = TRUE)$maximum   # = mean(x)
+exp(-mean(x))                                      # MLE of P(X = 0), by invariance
+```
+
+Gamma MLE has no closed form; maximise numerically with `optim`:
+
+```{r}
+nll <- function(p) -sum(dgamma(precip, shape = p[1], rate = p[2], log = TRUE))
+optim(c(6.57, 0.188), nll)$par                     # start at the MoM values
+```
+
+## Uniform(0, theta): MoM versus MLE
+
+```{r}
+set.seed(18)
+theta <- 10; n <- 20
+U <- matrix(runif(2e4 * n, 0, theta), 2e4)
+mom <- 2 * rowMeans(U); mle <- apply(U, 1, max)
+rbind(MoM = c(mean = mean(mom), mse = mean((mom - theta)^2)),
+      MLE = c(mean = mean(mle), mse = mean((mle - theta)^2)))
+c(theory_mom = theta^2 / (3 * n), theory_mle = 2 * theta^2 / ((n + 1) * (n + 2)))
+```

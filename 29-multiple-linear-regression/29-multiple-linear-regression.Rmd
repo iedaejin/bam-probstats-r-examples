@@ -1,0 +1,92 @@
+---
+title: "Multiple linear regression in `R`"
+output: html_document
+author: BAM & BIEBAM
+---
+
+All code is base `R`. Every number quoted on the Session 29 slides can be reproduced here.
+Data: `LifeCycleSavings` (50 countries) and `chickwts`.
+
+## Full model and interpretation
+
+```{r}
+d <- LifeCycleSavings
+full <- lm(sr ~ pop15 + pop75 + dpi + ddpi, data = d)
+summary(full)
+confint(full)["ddpi", ]                  # (0.015, 0.805)
+coef(lm(sr ~ pop15, data = d))[2]        # marginal slope -0.223 vs partial -0.461
+cor(d$pop15, d$pop75)                    # -0.908
+```
+
+## Reading output (Your turn 1)
+
+```{r}
+m2 <- lm(sr ~ pop15 + ddpi, data = d)
+summary(m2)
+confint(m2)["ddpi", ]
+predict(m2, data.frame(pop15 = 30, ddpi = 3))   # 10.44
+```
+
+## Dummy variable and interaction
+
+```{r}
+d$young <- as.numeric(d$pop15 > 35); table(d$young)   # 27 and 23
+par1 <- lm(sr ~ ddpi + young, data = d); summary(par1)$coef
+int  <- lm(sr ~ ddpi * young, data = d); summary(int)$coef
+anova(par1, int)                                      # F = 4.98 on (1, 46), p = 0.031
+int2 <- lm(sr ~ ddpi * young, data = d[rownames(d) != "Libya", ])
+summary(int2)$coef["ddpi:young", ]                    # p = 0.13 without Libya
+```
+
+## ANOVA is a linear model (chickwts)
+
+```{r}
+lmc <- lm(weight ~ feed, data = chickwts)
+coef(lmc)
+anova(lmc)                               # F = 15.37 on (5, 65)
+summary(aov(weight ~ feed, data = chickwts))
+```
+
+## R-squared, overall F, partial F
+
+```{r}
+n <- nrow(d); SST <- sum((d$sr - mean(d$sr))^2); SSE <- deviance(full); p <- 5
+c(R2 = 1 - SSE / SST, adjR2 = 1 - (SSE / (n - p)) / (SST / (n - 1)))
+F <- ((SST - SSE) / 4) / (SSE / (n - p)); c(F = F, crit = qf(.95, 4, n - p))
+small <- lm(sr ~ pop15, data = d)
+anova(small, full)                       # F = 2.969, p = 0.042
+qf(.95, 3, 45)                           # 2.81
+summary(full)$coef["dpi", "t value"]^2   # 0.131: partial F for q = 1
+# Your turn 3
+1 - (100 / 36) / (400 / 39)                       # 0.729
+((300 - 240) / 2) / (240 / 35); qf(.95, 2, 35)    # 4.375 vs 3.267
+```
+
+## Multicollinearity
+
+```{r}
+x <- model.matrix(full)[, -1]
+vif <- sapply(colnames(x), function(j) 1 / (1 - summary(lm(x[, j] ~ x[, -which(colnames(x) == j)]))$r.squared))
+round(vif, 2)                            # 5.94 6.63 2.88 1.07
+sqrt(vif)
+```
+
+## Model selection
+
+```{r}
+m3 <- lm(sr ~ pop15 + pop75 + ddpi, data = d)
+AIC(small, m2, m3, full)                 # 285.2 281.9 280.3 282.2
+BIC(small, m2, m3, full)
+step(full)                               # drops dpi (step() uses extractAIC: different constant)
+```
+
+## Diagnostics and prediction
+
+```{r}
+h <- hatvalues(full); cd <- cooks.distance(full)
+c(avg = 5 / n, h_Libya = h["Libya"], maxCook = max(cd))   # 0.10, 0.53, 0.27
+summary(update(full, data = d[rownames(d) != "Libya", ]))$coef["ddpi", ]  # 0.61, p = 0.028
+nd <- data.frame(pop15 = 35, pop75 = 2, ddpi = 3)
+predict(m3, nd, interval = "confidence")   # 9.93 (8.65, 11.20)
+predict(m3, nd, interval = "prediction")   # (2.24, 17.61)
+```
