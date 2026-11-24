@@ -1,5 +1,7 @@
 # Session 27: Two-way ANOVA
 
+*This session is covered if time permits.*
+
 Factorial design; interaction; assumptions; post-hoc tests
 
 **Readings:** Kutner Ch. 19; Faraway Ch. 16

@@ -1,5 +1,7 @@
 # Session 26: ANOVA: designs
 
+*This session is covered if time permits.*
+
 Completely randomised design; randomised block design; exercises
 
 **Readings:** Kutner Ch. 21; Faraway Ch. 17

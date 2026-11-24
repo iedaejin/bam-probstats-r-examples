@@ -8,4 +8,4 @@ Null and alternative hypotheses; test statistics; p-values; type I and II errors
 
 - [`22-hypothesis-testing.Rmd`](22-hypothesis-testing.Rmd): open in RStudio and click **Knit**, or run the chunks
 
-**Problem sets (on Blackboard):** 5a statistical-inference (sections 2–5), 5b hypothesis-testing, 5c hypothesis-testing-2, 5d ci-tests (Part B), 5e f-test-variance, statistical-inference-classwork
+**Problem sets (on Blackboard):** 5a statistical-inference (sections 2–5), 5b hypothesis-testing, 5c hypothesis-testing-2, 5d ci-tests (Part B), 5e f-test-variance, 5g statistical-inference-classwork
