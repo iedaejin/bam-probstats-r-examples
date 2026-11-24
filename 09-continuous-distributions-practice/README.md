@@ -8,4 +8,4 @@ Uniform, normal, exponential, gamma; exercises
 
 - [`09-continuous-rvs.Rmd`](09-continuous-rvs.Rmd): open in RStudio and click **Knit**, or run the chunks
 
-**Problem sets (on Blackboard):** problem-set-continuous-rvs (sections 3–6)
+**Problem sets (on Blackboard):** problem-set-continuous-rvs (sections 3–7, 7 = gamma)
